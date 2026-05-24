@@ -6,7 +6,7 @@ Interactive 3D particle experience built with Three.js and MediaPipe Hands.
 
 # ✨ Demo Preview
 
-![Switch Demo](Switch.gif)
+![Switch Demo](assets/switch.gif)
 
 ---
 
@@ -26,27 +26,27 @@ Interactive 3D particle experience built with Three.js and MediaPipe Hands.
 
 ## ❤️ Heart
 
-![Heart](heart.png)
+![Heart](assets/heart.png)
 
 ---
 
 ## 🌸 Flower
 
-![Flower Demo](Flower.gif)
+![Flower Demo](assets/flower.gif)
 
-![Flower](flower.png)
+![Flower](assets/flower.png)
 
 ---
 
 ## 🪐 Saturn
 
-![Saturn](saturn.png)
+![Saturn](assets/saturn.png)
 
 ---
 
 ## 🎆 Firework
 
-![Firework](firework.png)
+![Firework](assets/firework.png)
 
 ---
 
