@@ -450,6 +450,7 @@
     const MAX_ZOOM = 2.25;
     const SCALE_EASE = 0.08;
     const DEFAULT_PARTICLE_OPACITY = 0.92;
+    const HAND_MEMORY_MS = 520;
 
     let nextShape = 'heart';
     let transitionStartTime = 0;
@@ -466,13 +467,22 @@
     let gestureState = 'idle';
     let lastGestureState = 'idle';
     let lastHandTime = 0;
+    let lastValidLandmarkTime = 0;
+    let lastValidLandmarks = null;
+    let missedHandFrames = 0;
     let lastLogTime = 0;
+    let lastVideoLogTime = 0;
+    let lastVideoLogStage = '';
     let lastFpsTime = performance.now();
     let frameCount = 0;
     let currentFps = 0;
     let baseParticleSize = 0.15;
     let rotationVelocityX = 0.0012;
     let rotationVelocityY = 0.002;
+    let hands = null;
+    let cameraFeed = null;
+    let handsFrameLoopActive = false;
+    let cameraFrameCallbackLogged = false;
 
     const renderer = new THREE.WebGLRenderer({
       canvas,
@@ -515,6 +525,14 @@
       return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
+    function cloneLandmarks(landmarks) {
+      return landmarks.map((point) => ({
+        x: point.x,
+        y: point.y,
+        z: point.z || 0
+      }));
+    }
+
     function setDebugText(element, value) {
       if (element.textContent !== value) {
         element.textContent = value;
@@ -533,6 +551,130 @@
       console.debug('[gesture-debug]', payload);
       lastLogTime = now;
       lastGestureState = payload.gestureState;
+    }
+
+    function isVideoReadyForHands() {
+      return (
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+        video.videoWidth > 0 &&
+        video.videoHeight > 0 &&
+        !video.paused &&
+        !video.ended
+      );
+    }
+
+    function logVideoPipeline(stage) {
+      const now = performance.now();
+      const sameStage = stage === lastVideoLogStage;
+      if (sameStage && now - lastVideoLogTime < 700) return;
+
+      console.log('[mediapipe-video]', {
+        stage,
+        sameVideoElement: video === document.getElementById('video'),
+        readyState: video.readyState,
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+        paused: video.paused,
+        ended: video.ended,
+        currentTime: video.currentTime,
+        hasSrcObject: !!video.srcObject
+      });
+
+      lastVideoLogTime = now;
+      lastVideoLogStage = stage;
+    }
+
+    function waitForVideoReady() {
+      if (isVideoReadyForHands()) {
+        logVideoPipeline('already-ready');
+        return Promise.resolve();
+      }
+
+      logVideoPipeline('waiting-for-video');
+
+      return new Promise((resolve) => {
+        let rafId = 0;
+        let timeoutId = 0;
+        let settled = false;
+
+        const cleanup = () => {
+          video.removeEventListener('loadedmetadata', checkReady);
+          video.removeEventListener('loadeddata', checkReady);
+          video.removeEventListener('canplay', checkReady);
+          video.removeEventListener('playing', checkReady);
+          cancelAnimationFrame(rafId);
+          clearTimeout(timeoutId);
+        };
+
+        const finish = (stage) => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          logVideoPipeline(stage);
+          resolve();
+        };
+
+        const checkReady = () => {
+          if (isVideoReadyForHands()) {
+            finish('video-ready');
+          }
+        };
+
+        const poll = () => {
+          if (settled) return;
+          if (isVideoReadyForHands()) {
+            finish('video-ready');
+            return;
+          }
+          rafId = requestAnimationFrame(poll);
+        };
+
+        rafId = requestAnimationFrame(poll);
+        timeoutId = window.setTimeout(() => {
+          console.warn('[mediapipe-video] video was not ready after timeout; hands.send will stay gated until valid frames exist');
+          finish('video-ready-timeout');
+        }, 6000);
+
+        video.addEventListener('loadedmetadata', checkReady);
+        video.addEventListener('loadeddata', checkReady);
+        video.addEventListener('canplay', checkReady);
+        video.addEventListener('playing', checkReady);
+      });
+    }
+
+    function scheduleHandsFrame() {
+      if (!handsFrameLoopActive) return;
+
+      if (typeof video.requestVideoFrameCallback === 'function') {
+        video.requestVideoFrameCallback(() => {
+          processHandsFrame();
+        });
+        return;
+      }
+
+      requestAnimationFrame(() => {
+        processHandsFrame();
+      });
+    }
+
+    async function processHandsFrame() {
+      if (!handsFrameLoopActive || !hands) return;
+
+      if (!isVideoReadyForHands()) {
+        logVideoPipeline('frame-skipped-not-ready');
+        scheduleHandsFrame();
+        return;
+      }
+
+      logVideoPipeline('before-hands-send');
+
+      try {
+        await hands.send({ image: video });
+      } catch (error) {
+        console.warn('[mediapipe-video] hands.send failed', error);
+      }
+
+      scheduleHandsFrame();
     }
 
     function smoothstep(t) {
@@ -735,7 +877,25 @@
     resize();
 
     function onHandResults(results) {
-      const landmarks = results.multiHandLandmarks && results.multiHandLandmarks[0];
+      const detectedLandmarks = results.multiHandLandmarks && results.multiHandLandmarks[0];
+      const now = performance.now();
+      const rawLandmarkCount = detectedLandmarks ? detectedLandmarks.length : 0;
+      const hasFreshLandmarks = rawLandmarkCount >= 21;
+
+      if (hasFreshLandmarks) {
+        lastValidLandmarks = cloneLandmarks(detectedLandmarks);
+        lastValidLandmarkTime = now;
+        missedHandFrames = 0;
+      } else {
+        missedHandFrames += 1;
+      }
+
+      const canUseLandmarkMemory = (
+        !hasFreshLandmarks &&
+        lastValidLandmarks &&
+        now - lastValidLandmarkTime < HAND_MEMORY_MS
+      );
+      const landmarks = hasFreshLandmarks ? detectedLandmarks : canUseLandmarkMemory ? lastValidLandmarks : null;
       const landmarkCount = landmarks ? landmarks.length : 0;
 
       if (!landmarks) {
@@ -751,7 +911,10 @@
         setDebugText(debugHandPill, 'No hand');
         logGestureDebug({
           multiHandLandmarks: results.multiHandLandmarks,
+          rawLandmarkCount,
           landmarkCount,
+          missedHandFrames,
+          timeSinceLastValid: Math.round(now - lastValidLandmarkTime),
           gestureState,
           trigger: false,
           reason: 'no landmarks'
@@ -795,18 +958,21 @@
       smoothHandY = lerp(smoothHandY, handY, smoothing);
 
       hasHand = true;
-      lastHandTime = performance.now();
+      lastHandTime = now;
       gestureState = isPinching ? 'pinch-active' : 'hand-tracking';
       triggerGestureFeedback(isPinching);
-      setDebugText(debugHandStatus, '已检测');
-      setDebugText(debugLandmarkStatus, `${landmarkCount} / 21`);
+      setDebugText(debugHandStatus, canUseLandmarkMemory ? '短暂保持' : '已检测');
+      setDebugText(debugLandmarkStatus, canUseLandmarkMemory ? `${landmarkCount} / 21*` : `${landmarkCount} / 21`);
       setDebugText(debugPinchDistance, `${normalizedPinch.toFixed(2)}x`);
       setDebugText(debugGestureState, gestureState);
       debugHandPill.classList.add('active');
-      setDebugText(debugHandPill, isPinching ? 'Pinch' : 'Hand');
+      setDebugText(debugHandPill, canUseLandmarkMemory ? 'Hold' : isPinching ? 'Pinch' : 'Hand');
 
       logGestureDebug({
         multiHandLandmarks: results.multiHandLandmarks,
+        usingLandmarkMemory: canUseLandmarkMemory,
+        rawLandmarkCount,
+        missedHandFrames,
         pinchDistance,
         normalizedPinch,
         palmWidth,
@@ -828,28 +994,37 @@
       }
 
       try {
-        const hands = new HandsCtor({
+        hands = new HandsCtor({
           locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`
         });
 
         hands.setOptions({
           maxNumHands: 1,
           modelComplexity: 1,
-          minDetectionConfidence: 0.52,
-          minTrackingConfidence: 0.5,
+          minDetectionConfidence: 0.45,
+          minTrackingConfidence: 0.4,
           selfieMode: false
         });
         hands.onResults(onHandResults);
 
-        const cameraFeed = new CameraCtor(video, {
+        cameraFeed = new CameraCtor(video, {
           width: 640,
           height: 480,
           onFrame: async () => {
-            await hands.send({ image: video });
+            if (!cameraFrameCallbackLogged) {
+              cameraFrameCallbackLogged = true;
+              logVideoPipeline('camera-frame-callback');
+            }
           }
         });
 
+        logVideoPipeline('before-camera-start');
         await cameraFeed.start();
+        logVideoPipeline('after-camera-start');
+        await waitForVideoReady();
+
+        handsFrameLoopActive = true;
+        scheduleHandsFrame();
       } catch (error) {
         showError('摄像头启动失败。请在浏览器地址栏左侧允许摄像头权限，并确认页面地址是 127.0.0.1 或 localhost。');
       }
