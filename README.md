@@ -32,9 +32,9 @@ Interactive 3D particle experience built with Three.js and MediaPipe Hands.
 
 ## 🌸 Flower
 
-![Flower Demo](flower.gif)
+![Flower Demo](Flower.gif)
 
-![Flower](Flower.png)
+![Flower](flower.png)
 
 ---
 
