@@ -6,7 +6,7 @@ Interactive 3D particle experience built with Three.js and MediaPipe Hands.
 
 # ✨ Demo Preview
 
-![Switch Demo](switch.gif)
+![Switch Demo](Switch.gif)
 
 ---
 
@@ -34,7 +34,7 @@ Interactive 3D particle experience built with Three.js and MediaPipe Hands.
 
 ![Flower Demo](flower.gif)
 
-![Flower](flower.png)
+![Flower](Flower.png)
 
 ---
 
