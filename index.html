@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>实时手势 3D 粒子系统</title>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.157.0/build/three.module.js"
+    }
+  }
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 22% 18%, rgba(0, 188, 255, 0.16), transparent 32%),
+        radial-gradient(circle at 78% 72%, rgba(255, 70, 165, 0.16), transparent 34%),
+        linear-gradient(135deg, #020713 0%, #06111f 52%, #030611 100%);
+      color: #eef8ff;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #stage {
+      position: fixed;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    .toolbar {
+      position: fixed;
+      top: max(18px, env(safe-area-inset-top));
+      left: max(18px, env(safe-area-inset-left));
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      max-width: calc(100vw - 36px);
+      padding: 10px;
+      border: 1px solid rgba(139, 218, 255, 0.28);
+      border-radius: 18px;
+      background: rgba(7, 14, 28, 0.58);
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      box-shadow: 0 20px 70px rgba(0, 0, 0, 0.38), 0 0 28px rgba(82, 194, 255, 0.18);
+    }
+
+    .shape-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button,
+    .color-shell {
+      height: 38px;
+      border: 1px solid rgba(157, 225, 255, 0.25);
+      border-radius: 12px;
+      color: rgba(241, 250, 255, 0.94);
+      background: rgba(10, 21, 38, 0.66);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 26px rgba(0, 0, 0, 0.24);
+      transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+    }
+
+    button {
+      min-width: 58px;
+      padding: 0 13px;
+      cursor: pointer;
+      font-size: 13px;
+      letter-spacing: 0;
+    }
+
+    button:hover,
+    .color-shell:hover {
+      transform: translateY(-1px);
+      border-color: rgba(157, 225, 255, 0.6);
+      background: rgba(17, 37, 60, 0.76);
+      box-shadow: 0 0 20px rgba(117, 218, 255, 0.2);
+    }
+
+    button.active {
+      border-color: rgba(255, 128, 187, 0.76);
+      background: linear-gradient(180deg, rgba(255, 91, 166, 0.38), rgba(73, 189, 255, 0.18));
+      box-shadow: 0 0 24px rgba(255, 91, 166, 0.22);
+    }
+
+    .color-shell {
+      width: 46px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    input[type="color"] {
+      width: 66px;
+      height: 66px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    #fullscreenBtn {
+      width: 42px;
+      min-width: 42px;
+      padding: 0;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    #video {
+      position: fixed;
+      right: max(18px, env(safe-area-inset-right));
+      bottom: max(18px, env(safe-area-inset-bottom));
+      z-index: 12;
+      width: 190px;
+      height: 142px;
+      object-fit: cover;
+      transform: scaleX(-1);
+      border-radius: 20px;
+      border: 1px solid rgba(164, 231, 255, 0.36);
+      background: rgba(4, 8, 18, 0.78);
+      box-shadow:
+        0 18px 64px rgba(0, 0, 0, 0.45),
+        0 0 30px rgba(78, 200, 255, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    }
+
+    .hint {
+      position: fixed;
+      left: max(18px, env(safe-area-inset-left));
+      bottom: max(18px, env(safe-area-inset-bottom));
+      z-index: 8;
+      max-width: min(420px, calc(100vw - 36px));
+      padding: 11px 14px;
+      border: 1px solid rgba(139, 218, 255, 0.18);
+      border-radius: 16px;
+      background: rgba(7, 14, 28, 0.42);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      color: rgba(207, 229, 242, 0.76);
+      font-size: 13px;
+      line-height: 1.55;
+      pointer-events: none;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: none;
+      place-items: center;
+      padding: 24px;
+      background: rgba(0, 4, 12, 0.56);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .modal.show {
+      display: grid;
+    }
+
+    .modal-card {
+      width: min(560px, 100%);
+      padding: 26px 28px;
+      border-radius: 22px;
+      border: 1px solid rgba(151, 219, 255, 0.34);
+      background: rgba(8, 15, 30, 0.86);
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.48), 0 0 44px rgba(101, 197, 255, 0.18);
+      text-align: center;
+    }
+
+    .modal-card h1 {
+      margin: 0 0 12px;
+      font-size: 24px;
+      line-height: 1.25;
+    }
+
+    .modal-card p {
+      margin: 0;
+      color: rgba(207, 229, 242, 0.8);
+      font-size: 15px;
+      line-height: 1.8;
+    }
+
+    @media (max-width: 680px) {
+      .toolbar {
+        top: max(12px, env(safe-area-inset-top));
+        left: 12px;
+        right: 12px;
+      }
+
+      button {
+        min-width: 50px;
+        padding: 0 10px;
+        font-size: 12px;
+      }
+
+      #video {
+        width: 142px;
+        height: 106px;
+        right: 12px;
+        bottom: max(12px, env(safe-area-inset-bottom));
+        border-radius: 16px;
+      }
+
+      .hint {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="stage"></canvas>
+
+  <div class="toolbar">
+    <div class="shape-buttons">
+      <button class="shape-btn active" data-shape="heart">爱心</button>
+      <button class="shape-btn" data-shape="flower">花朵</button>
+      <button class="shape-btn" data-shape="saturn">土星</button>
+      <button class="shape-btn" data-shape="firework">烟花</button>
+    </div>
+
+    <label class="color-shell" title="粒子颜色">
+      <input id="particleColor" type="color" value="#ff6fb1" aria-label="粒子颜色" />
+    </label>
+
+    <button id="fullscreenBtn" title="全屏" aria-label="全屏">⛶</button>
+  </div>
+
+  <div class="hint">拇指和食指捏合控制缩放与扩散，移动手掌控制旋转。若浏览器询问摄像头权限，请选择允许。</div>
+  <video id="video" autoplay muted playsinline></video>
+
+  <div id="errorModal" class="modal">
+    <div class="modal-card">
+      <h1>暂时无法启动手势交互</h1>
+      <p id="errorMessage">请确认摄像头权限已允许，并通过 Live Server 的 localhost / 127.0.0.1 地址打开。</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+
+    const PARTICLE_COUNT = 15000;
+    const canvas = document.getElementById('stage');
+    const video = document.getElementById('video');
+    const colorInput = document.getElementById('particleColor');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const errorModal = document.getElementById('errorModal');
+    const errorMessage = document.getElementById('errorMessage');
+    const shapeButtons = Array.from(document.querySelectorAll('.shape-btn'));
+
+    const positions = new Float32Array(PARTICLE_COUNT * 3);
+    const transitionStart = new Float32Array(PARTICLE_COUNT * 3);
+    const orbitAngles = new Float32Array(PARTICLE_COUNT);
+    const orbitRadii = new Float32Array(PARTICLE_COUNT);
+    const orbitSpeeds = new Float32Array(PARTICLE_COUNT);
+    const orbitTilts = new Float32Array(PARTICLE_COUNT);
+    const targets = {
+      heart: new Float32Array(PARTICLE_COUNT * 3),
+      flower: new Float32Array(PARTICLE_COUNT * 3),
+      saturn: new Float32Array(PARTICLE_COUNT * 3),
+      firework: new Float32Array(PARTICLE_COUNT * 3)
+    };
+
+    let nextShape = 'heart';
+    let transitionStartTime = 0;
+    let transitionDuration = 1000;
+    let transitionActive = false;
+    let smoothPinch = 0.09;
+    let smoothScale = 1.2;
+    let smoothSpread = 0.2;
+    let smoothHandX = 0.5;
+    let smoothHandY = 0.5;
+    let hasHand = false;
+    let lastHandTime = 0;
+    let rotationVelocityX = 0.0012;
+    let rotationVelocityY = 0.002;
+
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance'
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0x000000, 0);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 120);
+    camera.position.set(0, 0, 24);
+
+    const particleGroup = new THREE.Group();
+    scene.add(particleGroup);
+
+    function showError(message) {
+      errorMessage.textContent = message;
+      errorModal.classList.add('show');
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function mapRange(value, inMin, inMax, outMin, outMax) {
+      const t = clamp((value - inMin) / (inMax - inMin), 0, 1);
+      return lerp(outMin, outMax, t);
+    }
+
+    function smoothstep(t) {
+      const x = clamp(t, 0, 1);
+      return x * x * (3 - 2 * x);
+    }
+
+    function randomNormal() {
+      let u = 0;
+      let v = 0;
+      while (u === 0) u = Math.random();
+      while (v === 0) v = Math.random();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    }
+
+    function setXYZ(array, index, x, y, z) {
+      const i = index * 3;
+      array[i] = x;
+      array[i + 1] = y;
+      array[i + 2] = z;
+    }
+
+    function createParticleTexture() {
+      const size = 128;
+      const textureCanvas = document.createElement('canvas');
+      textureCanvas.width = size;
+      textureCanvas.height = size;
+      const ctx = textureCanvas.getContext('2d');
+      const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+      gradient.addColorStop(0, 'rgba(255,255,255,1)');
+      gradient.addColorStop(0.18, 'rgba(255,255,255,0.96)');
+      gradient.addColorStop(0.42, 'rgba(215,240,255,0.45)');
+      gradient.addColorStop(0.72, 'rgba(150,210,255,0.13)');
+      gradient.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, size, size);
+      const texture = new THREE.CanvasTexture(textureCanvas);
+      texture.needsUpdate = true;
+      return texture;
+    }
+
+    function generateHeart(array) {
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const t = Math.random() * Math.PI * 2;
+        const fill = Math.pow(Math.random(), 0.34);
+        const xRaw = 16 * Math.pow(Math.sin(t), 3);
+        const yRaw = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+        const x = xRaw * 0.42 * fill;
+        const y = (yRaw - 2) * 0.42 * fill;
+        const z = randomNormal() * 0.45 * (0.3 + fill * 0.7);
+        setXYZ(array, i, x, y, z);
+      }
+    }
+
+    function generateFlower(array) {
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const layer = Math.floor(Math.random() * 5);
+        const fill = Math.pow(Math.random(), 0.42);
+        const radius = (2.7 + 1.35 * Math.cos(5 * theta)) * fill + randomNormal() * 0.12;
+        const x = Math.cos(theta) * radius * 1.18;
+        const y = Math.sin(theta) * radius * 1.18;
+        const z = (layer - 2) * 0.46 + Math.sin(theta * 5 + layer * 0.72) * 0.42 + randomNormal() * 0.16;
+        setXYZ(array, i, x, y, z);
+      }
+    }
+
+    function generateSaturn(array) {
+      const sphereCount = 7000;
+      const tilt = -0.42;
+      const cosTilt = Math.cos(tilt);
+      const sinTilt = Math.sin(tilt);
+
+      for (let i = 0; i < sphereCount; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const radius = 2.45 * Math.pow(Math.random(), 0.34);
+        const x = radius * Math.sin(phi) * Math.cos(theta);
+        const y = radius * Math.sin(phi) * Math.sin(theta);
+        const z = radius * Math.cos(phi);
+        setXYZ(array, i, x, y, z);
+      }
+
+      for (let i = sphereCount; i < PARTICLE_COUNT; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const radius = lerp(3.5, 7.9, Math.pow(Math.random(), 0.72));
+        const localX = Math.cos(theta) * radius;
+        const localY = randomNormal() * 0.085;
+        const localZ = Math.sin(theta) * radius * 0.42;
+        const y = localY * cosTilt - localZ * sinTilt;
+        const z = localY * sinTilt + localZ * cosTilt;
+        setXYZ(array, i, localX, y, z);
+      }
+    }
+
+    function generateFirework(array) {
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const radius = 1.2 + Math.pow(Math.random(), 0.28) * 7.0;
+        const streak = Math.random() < 0.28 ? 1 + Math.random() * 0.85 : 1;
+        const x = radius * streak * Math.sin(phi) * Math.cos(theta);
+        const y = radius * streak * Math.sin(phi) * Math.sin(theta);
+        const z = radius * streak * Math.cos(phi);
+        setXYZ(array, i, x, y, z);
+      }
+    }
+
+    function initializeParticles() {
+      generateHeart(targets.heart);
+      generateFlower(targets.flower);
+      generateSaturn(targets.saturn);
+      generateFirework(targets.firework);
+
+      for (let i = 0; i < PARTICLE_COUNT * 3; i++) {
+        positions[i] = targets.heart[i];
+        transitionStart[i] = targets.heart[i];
+      }
+
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        orbitAngles[i] = Math.random() * Math.PI * 2;
+        orbitRadii[i] = 0.025 + Math.random() * 0.145;
+        orbitSpeeds[i] = 0.004 + Math.random() * 0.012;
+        orbitTilts[i] = Math.random() * Math.PI * 2;
+      }
+    }
+
+    initializeParticles();
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.computeBoundingSphere();
+
+    const material = new THREE.PointsMaterial({
+      color: new THREE.Color(colorInput.value),
+      size: 0.15,
+      sizeAttenuation: true,
+      map: createParticleTexture(),
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      opacity: 0.92
+    });
+
+    const particles = new THREE.Points(geometry, material);
+    particleGroup.add(particles);
+
+    function switchShape(shape) {
+      if (!targets[shape] || shape === nextShape) return;
+
+      const currentTarget = targets[nextShape];
+      const now = performance.now();
+      const mix = transitionActive ? smoothstep((now - transitionStartTime) / transitionDuration) : 1;
+
+      for (let i = 0; i < PARTICLE_COUNT * 3; i++) {
+        transitionStart[i] = transitionActive ? lerp(transitionStart[i], currentTarget[i], mix) : positions[i];
+      }
+
+      nextShape = shape;
+      transitionStartTime = now;
+      transitionActive = true;
+
+      shapeButtons.forEach((button) => {
+        button.classList.toggle('active', button.dataset.shape === shape);
+      });
+    }
+
+    shapeButtons.forEach((button) => {
+      button.addEventListener('click', () => switchShape(button.dataset.shape));
+    });
+
+    colorInput.addEventListener('input', () => {
+      material.color.set(colorInput.value);
+    });
+
+    fullscreenBtn.addEventListener('click', async () => {
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        } else {
+          await document.documentElement.requestFullscreen();
+        }
+      } catch (error) {
+        showError('当前浏览器没有允许进入全屏。你仍然可以继续使用粒子系统。');
+      }
+    });
+
+    function resize() {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height, false);
+      material.size = width < 720 ? 0.115 : 0.15;
+    }
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', resize);
+    resize();
+
+    function onHandResults(results) {
+      const landmarks = results.multiHandLandmarks && results.multiHandLandmarks[0];
+      if (!landmarks) {
+        hasHand = false;
+        return;
+      }
+
+      const thumb = landmarks[4];
+      const index = landmarks[8];
+      const wrist = landmarks[0];
+      const indexMcp = landmarks[5];
+      const pinkyMcp = landmarks[17];
+
+      const thumbX = 1 - thumb.x;
+      const indexX = 1 - index.x;
+      const dx = indexX - thumbX;
+      const dy = index.y - thumb.y;
+      const dz = (index.z || 0) - (thumb.z || 0);
+      const pinchDistance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const handX = ((1 - wrist.x) + (1 - indexMcp.x) + (1 - pinkyMcp.x)) / 3;
+      const handY = (wrist.y + indexMcp.y + pinkyMcp.y) / 3;
+
+      smoothPinch = lerp(smoothPinch, pinchDistance, 0.15);
+      smoothScale = lerp(smoothScale, mapRange(smoothPinch, 0.02, 0.2, 0.5, 2.5), 0.15);
+      smoothSpread = lerp(smoothSpread, mapRange(smoothPinch, 0.03, 0.3, 0, 3), 0.15);
+      smoothHandX = lerp(smoothHandX, handX, 0.15);
+      smoothHandY = lerp(smoothHandY, handY, 0.15);
+
+      hasHand = true;
+      lastHandTime = performance.now();
+    }
+
+    async function startMediaPipe() {
+      const HandsCtor = window.mpHands?.Hands || window.Hands;
+      const CameraCtor = window.mpCamera?.Camera || window.Camera;
+
+      if (!HandsCtor || !CameraCtor) {
+        showError('MediaPipe 脚本没有成功加载。请确认网络能访问 jsdelivr CDN，然后刷新 Live Server 页面。');
+        return;
+      }
+
+      try {
+        const hands = new HandsCtor({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`
+        });
+
+        hands.setOptions({
+          maxNumHands: 1,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.65,
+          minTrackingConfidence: 0.65,
+          selfieMode: false
+        });
+        hands.onResults(onHandResults);
+
+        const cameraFeed = new CameraCtor(video, {
+          width: 640,
+          height: 480,
+          onFrame: async () => {
+            await hands.send({ image: video });
+          }
+        });
+
+        await cameraFeed.start();
+      } catch (error) {
+        showError('摄像头启动失败。请在浏览器地址栏左侧允许摄像头权限，并确认页面地址是 127.0.0.1 或 localhost。');
+      }
+    }
+
+    function updateParticlePositions(time) {
+      const target = targets[nextShape];
+      const now = performance.now();
+      let transitionMix = 1;
+
+      if (transitionActive) {
+        transitionMix = smoothstep((now - transitionStartTime) / transitionDuration);
+        if (transitionMix >= 1) {
+          transitionMix = 1;
+          transitionActive = false;
+        }
+      }
+
+      const spreadFactor = 1 + smoothSpread * 0.16;
+      const orbitScale = 0.75 + smoothSpread * 0.18;
+      const timePulse = time * 0.001;
+
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const p = i * 3;
+        const baseX = transitionActive ? lerp(transitionStart[p], target[p], transitionMix) : target[p];
+        const baseY = transitionActive ? lerp(transitionStart[p + 1], target[p + 1], transitionMix) : target[p + 1];
+        const baseZ = transitionActive ? lerp(transitionStart[p + 2], target[p + 2], transitionMix) : target[p + 2];
+
+        orbitAngles[i] += orbitSpeeds[i];
+
+        const angle = orbitAngles[i];
+        const tilt = orbitTilts[i];
+        const radius = orbitRadii[i] * orbitScale;
+        const driftX = Math.cos(angle) * radius;
+        const driftY = Math.sin(angle * 1.13 + tilt) * radius * 0.72;
+        const driftZ = Math.sin(angle + tilt + timePulse * 0.18) * radius * 1.18;
+
+        positions[p] = baseX * spreadFactor + driftX;
+        positions[p + 1] = baseY * spreadFactor + driftY;
+        positions[p + 2] = baseZ * spreadFactor + driftZ;
+      }
+
+      geometry.attributes.position.needsUpdate = true;
+    }
+
+    function updateRotation() {
+      const previousX = particleGroup.rotation.x;
+      const previousY = particleGroup.rotation.y;
+      const recentlySeen = performance.now() - lastHandTime < 320;
+
+      if (hasHand && recentlySeen) {
+        const targetRotationY = (smoothHandX - 0.5) * Math.PI;
+        const targetRotationX = (smoothHandY - 0.5) * 0.8;
+        particleGroup.rotation.x = lerp(particleGroup.rotation.x, targetRotationX, 0.08);
+        particleGroup.rotation.y = lerp(particleGroup.rotation.y, targetRotationY, 0.08);
+        rotationVelocityX = particleGroup.rotation.x - previousX;
+        rotationVelocityY = particleGroup.rotation.y - previousY;
+      } else {
+        hasHand = false;
+        rotationVelocityX = rotationVelocityX * 0.992 + 0.00006;
+        rotationVelocityY = rotationVelocityY * 0.992 + 0.00022;
+        particleGroup.rotation.x += rotationVelocityX;
+        particleGroup.rotation.y += rotationVelocityY;
+      }
+
+      particleGroup.rotation.z = Math.sin(performance.now() * 0.00035) * 0.055;
+      particleGroup.scale.setScalar(lerp(particleGroup.scale.x, smoothScale, 0.08));
+    }
+
+    function animate(time) {
+      requestAnimationFrame(animate);
+      updateParticlePositions(time);
+      updateRotation();
+      renderer.render(scene, camera);
+    }
+
+    startMediaPipe();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
