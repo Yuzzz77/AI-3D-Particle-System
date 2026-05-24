@@ -35,9 +35,27 @@
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 50% 52%, rgba(255, 111, 177, 0.11), transparent 36%),
+        radial-gradient(circle at 50% 50%, rgba(78, 200, 255, 0.08), transparent 52%);
+      opacity: 0;
+      transition: opacity 260ms ease;
+    }
+
+    body.pinch-active::before {
+      opacity: 1;
+    }
+
     #stage {
       position: fixed;
       inset: 0;
+      z-index: 1;
       display: block;
       width: 100%;
       height: 100%;
@@ -61,6 +79,13 @@
       backdrop-filter: blur(18px) saturate(140%);
       -webkit-backdrop-filter: blur(18px) saturate(140%);
       box-shadow: 0 20px 70px rgba(0, 0, 0, 0.38), 0 0 28px rgba(82, 194, 255, 0.18);
+      transition: border-color 220ms ease, box-shadow 220ms ease, background 220ms ease;
+    }
+
+    body.pinch-active .toolbar {
+      border-color: rgba(255, 128, 187, 0.48);
+      background: rgba(10, 22, 40, 0.68);
+      box-shadow: 0 20px 70px rgba(0, 0, 0, 0.38), 0 0 34px rgba(255, 111, 177, 0.18), 0 0 24px rgba(82, 194, 255, 0.16);
     }
 
     .shape-buttons {
@@ -142,6 +167,15 @@
         0 18px 64px rgba(0, 0, 0, 0.45),
         0 0 30px rgba(78, 200, 255, 0.22),
         inset 0 1px 0 rgba(255, 255, 255, 0.16);
+      transition: border-color 220ms ease, box-shadow 220ms ease;
+    }
+
+    body.pinch-active #video {
+      border-color: rgba(255, 128, 187, 0.48);
+      box-shadow:
+        0 18px 64px rgba(0, 0, 0, 0.45),
+        0 0 36px rgba(255, 111, 177, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
     }
 
     .hint {
@@ -160,6 +194,102 @@
       font-size: 13px;
       line-height: 1.55;
       pointer-events: none;
+    }
+
+    .debug-panel {
+      position: fixed;
+      right: max(18px, env(safe-area-inset-right));
+      top: max(18px, env(safe-area-inset-top));
+      z-index: 14;
+      width: min(270px, calc(100vw - 36px));
+      padding: 12px;
+      border: 1px solid rgba(139, 218, 255, 0.24);
+      border-radius: 16px;
+      background: rgba(7, 14, 28, 0.62);
+      backdrop-filter: blur(16px) saturate(140%);
+      -webkit-backdrop-filter: blur(16px) saturate(140%);
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.36), 0 0 24px rgba(82, 194, 255, 0.14);
+      color: rgba(232, 247, 255, 0.86);
+      font-size: 12px;
+      pointer-events: none;
+      transition: border-color 220ms ease, box-shadow 220ms ease, background 220ms ease;
+    }
+
+    body.pinch-active .debug-panel {
+      border-color: rgba(106, 231, 183, 0.36);
+      background: rgba(8, 18, 34, 0.68);
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.36), 0 0 28px rgba(54, 218, 156, 0.16);
+    }
+
+    .debug-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(184, 230, 255, 0.72);
+    }
+
+    .debug-pill {
+      min-width: 58px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 128, 187, 0.34);
+      background: rgba(255, 91, 166, 0.14);
+      color: rgba(255, 202, 227, 0.92);
+      text-align: center;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .debug-pill.active {
+      border-color: rgba(106, 231, 183, 0.56);
+      background: rgba(54, 218, 156, 0.16);
+      color: rgba(196, 255, 232, 0.96);
+      box-shadow: 0 0 16px rgba(54, 218, 156, 0.16);
+    }
+
+    .debug-grid {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 7px 12px;
+      align-items: center;
+    }
+
+    .debug-label {
+      color: rgba(207, 229, 242, 0.7);
+    }
+
+    .debug-value {
+      min-width: 64px;
+      color: rgba(245, 251, 255, 0.96);
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+
+    .gesture-feedback {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      z-index: 13;
+      width: 132px;
+      height: 132px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 128, 187, 0.62);
+      background: radial-gradient(circle, rgba(255, 111, 177, 0.24), rgba(79, 205, 255, 0.08) 52%, transparent 70%);
+      box-shadow: 0 0 46px rgba(255, 111, 177, 0.28), inset 0 0 28px rgba(120, 218, 255, 0.16);
+      transform: translate(-50%, -50%) scale(0.72);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease, transform 260ms ease;
+    }
+
+    .gesture-feedback.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
     }
 
     .modal {
@@ -225,6 +355,15 @@
       .hint {
         display: none;
       }
+
+      .debug-panel {
+        top: auto;
+        right: 12px;
+        bottom: calc(max(12px, env(safe-area-inset-bottom)) + 118px);
+        width: min(230px, calc(100vw - 24px));
+        padding: 10px;
+        font-size: 11px;
+      }
     }
   </style>
 </head>
@@ -248,6 +387,25 @@
   </div>
 
   <div class="hint">拇指和食指捏合控制缩放与扩散，移动手掌控制旋转。若浏览器询问摄像头权限，请选择允许。</div>
+  <div class="debug-panel" aria-live="polite">
+    <div class="debug-title">
+      <span>Gesture Debug</span>
+      <span id="debugHandPill" class="debug-pill">No hand</span>
+    </div>
+    <div class="debug-grid">
+      <span class="debug-label">手部检测</span>
+      <span id="debugHandStatus" class="debug-value">等待中</span>
+      <span class="debug-label">关键点</span>
+      <span id="debugLandmarkStatus" class="debug-value">0 / 21</span>
+      <span class="debug-label">捏合距离</span>
+      <span id="debugPinchDistance" class="debug-value">--</span>
+      <span class="debug-label">手势状态</span>
+      <span id="debugGestureState" class="debug-value">idle</span>
+      <span class="debug-label">FPS</span>
+      <span id="debugFps" class="debug-value">--</span>
+    </div>
+  </div>
+  <div id="gestureFeedback" class="gesture-feedback"></div>
   <video id="video" autoplay muted playsinline></video>
 
   <div id="errorModal" class="modal">
@@ -268,6 +426,13 @@
     const errorModal = document.getElementById('errorModal');
     const errorMessage = document.getElementById('errorMessage');
     const shapeButtons = Array.from(document.querySelectorAll('.shape-btn'));
+    const debugHandPill = document.getElementById('debugHandPill');
+    const debugHandStatus = document.getElementById('debugHandStatus');
+    const debugLandmarkStatus = document.getElementById('debugLandmarkStatus');
+    const debugPinchDistance = document.getElementById('debugPinchDistance');
+    const debugGestureState = document.getElementById('debugGestureState');
+    const debugFps = document.getElementById('debugFps');
+    const gestureFeedback = document.getElementById('gestureFeedback');
 
     const positions = new Float32Array(PARTICLE_COUNT * 3);
     const transitionStart = new Float32Array(PARTICLE_COUNT * 3);
@@ -281,6 +446,10 @@
       saturn: new Float32Array(PARTICLE_COUNT * 3),
       firework: new Float32Array(PARTICLE_COUNT * 3)
     };
+    const MIN_ZOOM = 0.78;
+    const MAX_ZOOM = 2.25;
+    const SCALE_EASE = 0.08;
+    const DEFAULT_PARTICLE_OPACITY = 0.92;
 
     let nextShape = 'heart';
     let transitionStartTime = 0;
@@ -288,11 +457,20 @@
     let transitionActive = false;
     let smoothPinch = 0.09;
     let smoothScale = 1.2;
+    let targetScale = 1.2;
     let smoothSpread = 0.2;
     let smoothHandX = 0.5;
     let smoothHandY = 0.5;
     let hasHand = false;
+    let isPinching = false;
+    let gestureState = 'idle';
+    let lastGestureState = 'idle';
     let lastHandTime = 0;
+    let lastLogTime = 0;
+    let lastFpsTime = performance.now();
+    let frameCount = 0;
+    let currentFps = 0;
+    let baseParticleSize = 0.15;
     let rotationVelocityX = 0.0012;
     let rotationVelocityY = 0.002;
 
@@ -328,6 +506,33 @@
     function mapRange(value, inMin, inMax, outMin, outMax) {
       const t = clamp((value - inMin) / (inMax - inMin), 0, 1);
       return lerp(outMin, outMax, t);
+    }
+
+    function distance3D(a, b) {
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const dz = (a.z || 0) - (b.z || 0);
+      return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    function setDebugText(element, value) {
+      if (element.textContent !== value) {
+        element.textContent = value;
+      }
+    }
+
+    function triggerGestureFeedback(active) {
+      gestureFeedback.classList.toggle('show', active);
+    }
+
+    function logGestureDebug(payload) {
+      const now = performance.now();
+      const stateChanged = payload.gestureState !== lastGestureState;
+      if (!stateChanged && now - lastLogTime < 700) return;
+
+      console.debug('[gesture-debug]', payload);
+      lastLogTime = now;
+      lastGestureState = payload.gestureState;
     }
 
     function smoothstep(t) {
@@ -469,7 +674,7 @@
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
-      opacity: 0.92
+      opacity: DEFAULT_PARTICLE_OPACITY
     });
 
     const particles = new THREE.Points(geometry, material);
@@ -521,7 +726,8 @@
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
-      material.size = width < 720 ? 0.115 : 0.15;
+      baseParticleSize = width < 720 ? 0.115 : 0.15;
+      material.size = baseParticleSize;
     }
 
     window.addEventListener('resize', resize);
@@ -530,8 +736,26 @@
 
     function onHandResults(results) {
       const landmarks = results.multiHandLandmarks && results.multiHandLandmarks[0];
+      const landmarkCount = landmarks ? landmarks.length : 0;
+
       if (!landmarks) {
         hasHand = false;
+        isPinching = false;
+        gestureState = 'no-hand';
+        triggerGestureFeedback(false);
+        setDebugText(debugHandStatus, '未检测到');
+        setDebugText(debugLandmarkStatus, `0 / 21`);
+        setDebugText(debugPinchDistance, '--');
+        setDebugText(debugGestureState, gestureState);
+        debugHandPill.classList.remove('active');
+        setDebugText(debugHandPill, 'No hand');
+        logGestureDebug({
+          multiHandLandmarks: results.multiHandLandmarks,
+          landmarkCount,
+          gestureState,
+          trigger: false,
+          reason: 'no landmarks'
+        });
         return;
       }
 
@@ -539,6 +763,7 @@
       const index = landmarks[8];
       const wrist = landmarks[0];
       const indexMcp = landmarks[5];
+      const middleMcp = landmarks[9];
       const pinkyMcp = landmarks[17];
 
       const thumbX = 1 - thumb.x;
@@ -547,17 +772,50 @@
       const dy = index.y - thumb.y;
       const dz = (index.z || 0) - (thumb.z || 0);
       const pinchDistance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const palmWidth = Math.max(distance3D(indexMcp, pinkyMcp), distance3D(wrist, middleMcp) * 0.72, 0.001);
+      const normalizedPinch = pinchDistance / palmWidth;
       const handX = ((1 - wrist.x) + (1 - indexMcp.x) + (1 - pinkyMcp.x)) / 3;
       const handY = (wrist.y + indexMcp.y + pinkyMcp.y) / 3;
+      const mobileView = window.innerWidth < 720 || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const closeThreshold = mobileView ? 0.58 : 0.52;
+      const openThreshold = closeThreshold + 0.2;
 
-      smoothPinch = lerp(smoothPinch, pinchDistance, 0.15);
-      smoothScale = lerp(smoothScale, mapRange(smoothPinch, 0.02, 0.2, 0.5, 2.5), 0.15);
-      smoothSpread = lerp(smoothSpread, mapRange(smoothPinch, 0.03, 0.3, 0, 3), 0.15);
-      smoothHandX = lerp(smoothHandX, handX, 0.15);
-      smoothHandY = lerp(smoothHandY, handY, 0.15);
+      if (isPinching) {
+        isPinching = normalizedPinch < openThreshold;
+      } else {
+        isPinching = normalizedPinch < closeThreshold;
+      }
+
+      const pinchStrength = mapRange(normalizedPinch, closeThreshold * 0.72, openThreshold, 0, 1);
+      const smoothing = mobileView ? 0.22 : 0.18;
+      smoothPinch = lerp(smoothPinch, normalizedPinch, smoothing);
+      targetScale = clamp(lerp(MIN_ZOOM, MAX_ZOOM, pinchStrength), MIN_ZOOM, MAX_ZOOM);
+      smoothSpread = lerp(smoothSpread, lerp(0.1, 3.1, pinchStrength), smoothing);
+      smoothHandX = lerp(smoothHandX, handX, smoothing);
+      smoothHandY = lerp(smoothHandY, handY, smoothing);
 
       hasHand = true;
       lastHandTime = performance.now();
+      gestureState = isPinching ? 'pinch-active' : 'hand-tracking';
+      triggerGestureFeedback(isPinching);
+      setDebugText(debugHandStatus, '已检测');
+      setDebugText(debugLandmarkStatus, `${landmarkCount} / 21`);
+      setDebugText(debugPinchDistance, `${normalizedPinch.toFixed(2)}x`);
+      setDebugText(debugGestureState, gestureState);
+      debugHandPill.classList.add('active');
+      setDebugText(debugHandPill, isPinching ? 'Pinch' : 'Hand');
+
+      logGestureDebug({
+        multiHandLandmarks: results.multiHandLandmarks,
+        pinchDistance,
+        normalizedPinch,
+        palmWidth,
+        closeThreshold,
+        openThreshold,
+        trigger: normalizedPinch < closeThreshold,
+        gestureActive: isPinching,
+        gestureState
+      });
     }
 
     async function startMediaPipe() {
@@ -577,8 +835,8 @@
         hands.setOptions({
           maxNumHands: 1,
           modelComplexity: 1,
-          minDetectionConfidence: 0.65,
-          minTrackingConfidence: 0.65,
+          minDetectionConfidence: 0.52,
+          minTrackingConfidence: 0.5,
           selfieMode: false
         });
         hands.onResults(onHandResults);
@@ -640,17 +898,19 @@
     function updateRotation() {
       const previousX = particleGroup.rotation.x;
       const previousY = particleGroup.rotation.y;
-      const recentlySeen = performance.now() - lastHandTime < 320;
+      const recentlySeen = performance.now() - lastHandTime < 650;
 
       if (hasHand && recentlySeen) {
         const targetRotationY = (smoothHandX - 0.5) * Math.PI;
         const targetRotationX = (smoothHandY - 0.5) * 0.8;
-        particleGroup.rotation.x = lerp(particleGroup.rotation.x, targetRotationX, 0.08);
-        particleGroup.rotation.y = lerp(particleGroup.rotation.y, targetRotationY, 0.08);
+        particleGroup.rotation.x = lerp(particleGroup.rotation.x, targetRotationX, 0.1);
+        particleGroup.rotation.y = lerp(particleGroup.rotation.y, targetRotationY, 0.1);
         rotationVelocityX = particleGroup.rotation.x - previousX;
         rotationVelocityY = particleGroup.rotation.y - previousY;
       } else {
         hasHand = false;
+        isPinching = false;
+        triggerGestureFeedback(false);
         rotationVelocityX = rotationVelocityX * 0.992 + 0.00006;
         rotationVelocityY = rotationVelocityY * 0.992 + 0.00022;
         particleGroup.rotation.x += rotationVelocityX;
@@ -658,13 +918,29 @@
       }
 
       particleGroup.rotation.z = Math.sin(performance.now() * 0.00035) * 0.055;
-      particleGroup.scale.setScalar(lerp(particleGroup.scale.x, smoothScale, 0.08));
+      smoothScale += (targetScale - smoothScale) * SCALE_EASE;
+      particleGroup.scale.setScalar(clamp(smoothScale, MIN_ZOOM, MAX_ZOOM));
+    }
+
+    function updateVisualFeedback() {
+      const gestureActive = isPinching && performance.now() - lastHandTime < 650;
+      document.body.classList.toggle('pinch-active', gestureActive);
+      material.opacity = lerp(material.opacity, gestureActive ? 1 : DEFAULT_PARTICLE_OPACITY, 0.08);
+      material.size = lerp(material.size, baseParticleSize * (gestureActive ? 1.08 : 1), 0.08);
     }
 
     function animate(time) {
       requestAnimationFrame(animate);
+      frameCount += 1;
+      if (time - lastFpsTime >= 500) {
+        currentFps = Math.round((frameCount * 1000) / (time - lastFpsTime));
+        frameCount = 0;
+        lastFpsTime = time;
+        setDebugText(debugFps, String(currentFps));
+      }
       updateParticlePositions(time);
       updateRotation();
+      updateVisualFeedback();
       renderer.render(scene, camera);
     }
 

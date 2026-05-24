@@ -1,0 +1,209 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 22% 18%, rgba(0, 188, 255, 0.16), transparent 32%),
+    radial-gradient(circle at 78% 72%, rgba(255, 70, 165, 0.16), transparent 34%),
+    linear-gradient(135deg, #020713 0%, #06111f 52%, #030611 100%);
+  color: #eef8ff;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.toolbar {
+  position: fixed;
+  top: max(18px, env(safe-area-inset-top));
+  left: max(18px, env(safe-area-inset-left));
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  max-width: calc(100vw - 36px);
+  padding: 10px;
+  border: 1px solid rgba(139, 218, 255, 0.28);
+  border-radius: 18px;
+  background: rgba(7, 14, 28, 0.58);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.38), 0 0 28px rgba(82, 194, 255, 0.18);
+}
+
+.shape-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+button,
+.color-shell {
+  height: 38px;
+  border: 1px solid rgba(157, 225, 255, 0.25);
+  border-radius: 12px;
+  color: rgba(241, 250, 255, 0.94);
+  background: rgba(10, 21, 38, 0.66);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 26px rgba(0, 0, 0, 0.24);
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+button {
+  min-width: 58px;
+  padding: 0 13px;
+  cursor: pointer;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+button:hover,
+.color-shell:hover {
+  transform: translateY(-1px);
+  border-color: rgba(157, 225, 255, 0.6);
+  background: rgba(17, 37, 60, 0.76);
+  box-shadow: 0 0 20px rgba(117, 218, 255, 0.2);
+}
+
+button.active {
+  border-color: rgba(255, 128, 187, 0.76);
+  background: linear-gradient(180deg, rgba(255, 91, 166, 0.38), rgba(73, 189, 255, 0.18));
+  box-shadow: 0 0 24px rgba(255, 91, 166, 0.22);
+}
+
+.color-shell {
+  width: 46px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+input[type="color"] {
+  width: 66px;
+  height: 66px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+#fullscreenBtn {
+  width: 42px;
+  min-width: 42px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+#video {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 12;
+  width: 190px;
+  height: 142px;
+  object-fit: cover;
+  transform: scaleX(-1);
+  border-radius: 20px;
+  border: 1px solid rgba(164, 231, 255, 0.36);
+  background: rgba(4, 8, 18, 0.78);
+  box-shadow:
+    0 18px 64px rgba(0, 0, 0, 0.45),
+    0 0 30px rgba(78, 200, 255, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.hint {
+  position: fixed;
+  left: max(18px, env(safe-area-inset-left));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 8;
+  max-width: min(420px, calc(100vw - 36px));
+  padding: 11px 14px;
+  border: 1px solid rgba(139, 218, 255, 0.18);
+  border-radius: 16px;
+  background: rgba(7, 14, 28, 0.42);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: rgba(207, 229, 242, 0.76);
+  font-size: 13px;
+  line-height: 1.55;
+  pointer-events: none;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: none;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 4, 12, 0.56);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.modal.show {
+  display: grid;
+}
+
+.modal-card {
+  width: min(560px, 100%);
+  padding: 26px 28px;
+  border-radius: 22px;
+  border: 1px solid rgba(151, 219, 255, 0.34);
+  background: rgba(8, 15, 30, 0.86);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.48), 0 0 44px rgba(101, 197, 255, 0.18);
+  text-align: center;
+}
+
+.modal-card h1 {
+  margin: 0 0 12px;
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.modal-card p {
+  margin: 0;
+  color: rgba(207, 229, 242, 0.8);
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+@media (max-width: 680px) {
+  .toolbar {
+    top: max(12px, env(safe-area-inset-top));
+    left: 12px;
+    right: 12px;
+  }
+
+  button {
+    min-width: 50px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  #video {
+    width: 142px;
+    height: 106px;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    border-radius: 16px;
+  }
+
+  .hint {
+    display: none;
+  }
+}
